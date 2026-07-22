@@ -1,27 +1,55 @@
 import { Button, GridBox, LineEdit } from "std-widgets.slint";
 
-component AutoclickUI {
-    callback start();
+component AutoclickUI inherits Rectangle {
+    callback start(bool);
 
-    Button {
-        text: "autoclick";
+    forward-focus: key-handler;
 
-        clicked => {
-            root.start();
+    key-handler := FocusScope {
+
+        key-pressed(event) => {
+            if event.text == "F6" {
+                root.start(true);
+                accept
+            } else {
+                reject
+            }
         }
     }
+
+    GridLayout {
+        Button {
+            col: 0;
+            text: "start";
+    
+            clicked => {
+                root.start(true);
+            }
+        }
+        
+        Button {
+            col: 1;
+            text: "stop";
+    
+            clicked => {
+                root.start(false);
+            }
+        }
+    }
+
 }
 
 export component MainWindow inherits Window {
     // icon: @image-url("icons/design.svg");
     title: @tr("AutoClick");
 
-    callback start();
+    callback start(bool);
 
     width: 326px;
     height: 326px;
 
     AutoclickUI {
-        start() => { root.start() }
+        start(bool) => { root.start(bool) }
+        
     }
 }

@@ -4,12 +4,19 @@ use enigo::{
     Enigo, Key, Keyboard, Mouse, Settings,
 };
 
-use std::{thread, time};
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
+    thread::{self, JoinHandle},
+    time::Duration,
+};
 
 pub struct AutoclickModel {
-    enigo: Enigo,
-    frequency: time::Duration,
-    is_active: bool,
+    frequency: Duration,
+    is_active: Arc<AtomicBool>,
+    task: Option<JoinHandle<()>>,
     // input_type: ?,
     // start_key
 }
@@ -17,21 +24,46 @@ pub struct AutoclickModel {
 impl Default for AutoclickModel {
     fn default() -> Self {
         Self {
-            enigo: Enigo::new(&Settings::default()).unwrap(),
-            frequency: time::Duration::from_millis(100),
-            is_active: false,
+            frequency: Duration::from_millis(100),
+            is_active: Arc::new(AtomicBool::new(false)),
+            task: None,
         }
     }
 }
 
 impl AutoclickModel {
-    pub fn input_for_x_time(&mut self) {
-        self.is_active = true;
+    pub fn get_is_active(&self) -> bool {
+        return self.is_active.load(Ordering::Relaxed);
+    }
 
-        while self.is_active {
-            // Need error handling
-            let _ = self.enigo.button(Button::Left, Click);
-            thread::sleep(self.frequency);
+    pub fn start(&mut self) {
+        if self.task.is_some() {
+            return;
+        }
+
+        
+
+        let frequency = self.frequency;
+        let running = self.is_active.clone();
+
+        running.store(true, Ordering::Relaxed);
+
+        self.task = Some(thread::spawn(move || {
+            let mut enigo = Enigo::new(&Settings::default()).unwrap();
+            while running.load(Ordering::Relaxed) {
+                println!("test3");
+                let _ = enigo.button(Button::Left, Click);
+                thread::sleep(frequency);
+                println!("{}", running.load(Ordering::Relaxed));
+            }
+        }));
+    }
+
+    pub fn stop(&mut self) {
+        self.is_active.store(false, Ordering::Relaxed);
+
+        if let Some(handle) = self.task.take() {
+            let _ = handle.join(); // wait for clean exit
         }
     }
 }

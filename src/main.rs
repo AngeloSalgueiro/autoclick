@@ -10,8 +10,13 @@ fn main() {
     // let weak_window = main_window.as_weak();
     let mut autoclick_model: AutoclickModel = AutoclickModel::default();
 
-    main_window.on_start(move || {
-        autoclick_model.input_for_x_time();
+    main_window.on_start(move |starting: bool|{
+        if starting{
+            autoclick_model.start();
+        } else{
+            autoclick_model.stop();
+        }
+
     });
 
     main_window.run().unwrap();
