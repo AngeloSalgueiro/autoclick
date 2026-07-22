@@ -1,0 +1,1 @@
+pub mod autoclick_model;
