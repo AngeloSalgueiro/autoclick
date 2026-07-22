@@ -32,16 +32,10 @@ impl Default for AutoclickModel {
 }
 
 impl AutoclickModel {
-    pub fn get_is_active(&self) -> bool {
-        return self.is_active.load(Ordering::Relaxed);
-    }
-
     pub fn start(&mut self) {
         if self.task.is_some() {
             return;
         }
-
-        
 
         let frequency = self.frequency;
         let running = self.is_active.clone();
