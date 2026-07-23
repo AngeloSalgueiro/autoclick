@@ -5,6 +5,7 @@ edition = "2024"
 
 [dependencies]
 enigo = "0.6.1"
+global-hotkey = "0.8.0"
 slint = "1.17"
 
 [build-dependencies]

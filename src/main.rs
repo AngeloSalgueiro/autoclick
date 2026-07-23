@@ -1,4 +1,6 @@
-use crate::model::autoclick_model::{self, AutoclickModel};
+use std::sync::{Arc, Mutex};
+
+use crate::model::autoclick_model::AutoclickModel;
 
 pub mod model;
 
@@ -8,15 +10,20 @@ fn main() {
     // View
     let main_window = MainWindow::new().unwrap();
     // let weak_window = main_window.as_weak();
-    let mut autoclick_model: AutoclickModel = AutoclickModel::default();
+    let autoclick_model = Arc::new(Mutex::new(AutoclickModel::default()));
 
-    main_window.on_start(move |starting: bool|{
-        if starting{
-            autoclick_model.start();
-        } else{
-            autoclick_model.stop();
+    if let Ok(model) = autoclick_model.lock() {
+        model.detect_toggle_key(Arc::clone(&autoclick_model));
+    }
+
+    main_window.on_start(move |starting: bool| {
+        if let Ok(mut autoclick_model) = autoclick_model.lock() {
+            if starting {
+                autoclick_model.start();
+            } else {
+                autoclick_model.stop();
+            }
         }
-
     });
 
     main_window.run().unwrap();
