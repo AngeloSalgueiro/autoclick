@@ -1,39 +1,117 @@
-import { Button, GridBox, LineEdit } from "std-widgets.slint";
+import { Button, VerticalBox, HorizontalBox } from "std-widgets.slint";
 
 component AutoclickUI inherits Rectangle {
-    callback start(bool);
+    callback start-autoclick(bool);
+    callback update-frequency();
 
-    GridLayout {
-        Button {
-            col: 0;
-            text: "start";
+    in-out property <string> frequency_value <=> frequency_input.text;
 
-            clicked => {
-                root.start(true);
+    VerticalBox {
+        x: 24px;
+        y: 24px;
+        width: parent.width - 48px;
+        height: parent.height - 48px;
+        spacing: 20px;
+
+        HorizontalBox {
+            Text {
+                vertical-alignment: center;
+                height: 30px;
+                text: "start key :";
+
+            }
+            
+            label := Button {
+                text: "F6";
+                
+                clicked => {
+                    label.text = "";
+                    start_key_focus.focus();
+                }
+            }
+
+            start_key_focus := FocusScope {
+                key-pressed(event) => {
+                    label.text = event.text;
+                    debug(event);
+                    accept
+                }
             }
         }
 
-        Button {
-            col: 1;
-            text: "stop";
+        HorizontalBox {
+            spacing: 12px;
 
-            clicked => {
-                root.start(false);
+            Text {
+                text: "Frequency (ms)";
+                vertical-alignment: center;
+            }
+
+            Rectangle {
+                background: white;
+                min-width: 72px;
+                height: 32px;
+                border-color: #c0c0c0;
+                border-width: 1px;
+                border-radius: 4px;
+
+                frequency_input := TextInput {
+                    vertical-alignment: center;
+                    text: 100;
+                    x: 8px;
+                    color: black;
+                    width: parent.width - 16px;
+                    height: parent.height;
+                    font-size: 15px;
+                    input-type: number;
+
+                    edited() => {
+                        root.update-frequency();
+                    }
+                }
+            }
+        }
+
+        HorizontalBox {
+            spacing: 12px;
+
+            Button {
+                height: 20px;
+                width: 50px;
+
+                text: "Start";
+                clicked => {
+                    root.start-autoclick(true);
+                }
+            }
+
+            Button {
+                height: 20px;
+                width: 50px;
+
+                text: "Stop";
+                clicked => {
+                    root.start-autoclick(false);
+                }
             }
         }
     }
 }
 
-export component MainWindow inherits Window {
+    export component MainWindow inherits Window {
     // icon: @image-url("icons/design.svg");
     title: @tr("AutoClick");
 
-    callback start(bool);
+    callback start-autoclick(bool);
+    callback update-frequency();
+
+    in-out property <string> frequency_value <=> autoclick_ui.frequency_value;
 
     width: 326px;
     height: 326px;
-    
-    AutoclickUI {
-        start(bool) => { root.start(bool) }
+
+    autoclick_ui := AutoclickUI {
+        start-autoclick(bool) => { root.start-autoclick(bool) }
+        update-frequency => { root.update-frequency() }
     }
 }

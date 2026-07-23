@@ -2,22 +2,21 @@ use enigo::{Button, Direction::Click, Enigo, Mouse, Settings};
 
 use std::{
     sync::{
-        atomic::{AtomicBool, Ordering},
         Arc, Mutex,
+        atomic::{AtomicBool, Ordering},
     },
     thread::{self, JoinHandle},
     time::Duration,
 };
 
 use global_hotkey::{
+    GlobalHotKeyManager, HotKeyState,
     hotkey::{Code, HotKey},
-    GlobalHotKeyManager,
-    HotKeyState
 };
 
 pub struct AutoclickModel {
     frequency: Duration,
-    active_state: Arc<AtomicBool>,
+    running: Arc<AtomicBool>,
     task: Option<JoinHandle<()>>,
     // input_type: ?,
     toggle_key: String,
@@ -28,7 +27,7 @@ impl Default for AutoclickModel {
     fn default() -> Self {
         Self {
             frequency: Duration::from_millis(100),
-            active_state: Arc::new(AtomicBool::new(false)),
+            running: Arc::new(AtomicBool::new(false)),
             task: None,
             toggle_key: format!("F6"),
             hotkey_manager: GlobalHotKeyManager::new().unwrap(),
@@ -37,41 +36,48 @@ impl Default for AutoclickModel {
 }
 
 impl AutoclickModel {
-    pub fn get_active_state(&self) -> bool {
-        return self.active_state.load(Ordering::Relaxed);
+    pub fn set_frequency(&mut self, new_frequency: u64) {
+        println!("frequency chanded to {} ms", new_frequency);
+        self.frequency = Duration::from_millis(new_frequency);
     }
 
     pub fn start(&mut self) {
         if self.task.is_some() {
-            self.stop();
             return;
         }
 
         let frequency = self.frequency;
-        let running = self.active_state.clone();
+        let running = self.running.clone();
 
-        running.store(true, Ordering::Relaxed);
+        running.store(true, Ordering::Release);
 
-        self.task = Some(thread::spawn(move || {
+        println!("starting");
+
+        let handle = thread::spawn(move || {
             let mut enigo = Enigo::new(&Settings::default()).unwrap();
-            while running.load(Ordering::Relaxed) {
-                println!("click");
+
+            while running.load(Ordering::Acquire) {
                 let _ = enigo.button(Button::Left, Click);
-                thread::sleep(frequency);
+                thread::park_timeout(frequency);
             }
-        }));
+        });
+
+        self.task = Some(handle);
     }
 
     pub fn stop(&mut self) {
-        self.active_state.store(false, Ordering::Relaxed);
+        self.running.store(false, Ordering::Release);
+
+        println!("stopping");
 
         if let Some(handle) = self.task.take() {
-            let _ = handle.join(); // wait for clean exit
+            handle.thread().unpark();
+            handle.join().unwrap();
         }
     }
 
     pub fn detect_toggle_key(&self, model: Arc<Mutex<Self>>) {
-        let hotkey = HotKey::new(None, Code::F5);
+        let hotkey = HotKey::new(None, Code::F6);
 
         self.hotkey_manager.register(hotkey).unwrap();
 
@@ -79,7 +85,11 @@ impl AutoclickModel {
             while let Ok(event) = global_hotkey::GlobalHotKeyEvent::receiver().recv() {
                 if event.state() == HotKeyState::Pressed {
                     if let Ok(mut model) = model.lock() {
-                        model.start();
+                        if model.running.load(Ordering::Relaxed) {
+                            model.stop();
+                        } else {
+                            model.start();
+                        }
                     }
                 }
             }
